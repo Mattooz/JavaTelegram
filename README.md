@@ -43,4 +43,13 @@ You can easily do this with events also.
 ```
 public class MyCommand implements CommandListener {
 
+//Each class can handle 1 command
+    public void onCommand(String command, String[] args, User from, int chat_id) {
 
+//your command here.
+//you could send a message, a photo or other stuff.
+//use bot.sendMessage(chat_id, "message");
+
+   }
+}
+```
