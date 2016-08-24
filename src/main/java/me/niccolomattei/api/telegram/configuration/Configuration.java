@@ -1,25 +1,23 @@
 package me.niccolomattei.api.telegram.configuration;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import me.niccolomattei.api.telegram.Bot;
+import me.niccolomattei.api.telegram.json.JSONPrettyPrinter;
+import me.niccolomattei.api.telegram.serialization.ISerializable;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
-
-import org.json.JSONObject;
-
-import me.niccolomattei.api.telegram.Bot;
 
 public class Configuration {
 
 	public static final String defaultPath = "bot/config/";
 	public static final File defaultPathFile = new File("bot/config/");
 
-	File configFile;
-	JSONObject configuration;
+	private File configFile;
+	private JSONObject configuration;
 
 	public static boolean generateDefault(String name) {
 		File f = new File(defaultPathFile, name);
@@ -27,13 +25,17 @@ public class Configuration {
 	}
 
 	public static boolean generateDefault(File path) {
-		FileWriter writer = null;
-		if (!path.exists()) {
-			defaultPathFile.mkdirs();
-			try {
-				path.createNewFile();
+		return generateDefault(path, defaultPathFile);
+	}
 
-				writer = new FileWriter(path);
+	public static boolean generateDefault(File pathToFile, File mkFolders) {
+		FileWriter writer = null;
+		if (!pathToFile.exists()) {
+			mkFolders.mkdirs();
+			try {
+				pathToFile.createNewFile();
+
+				writer = new FileWriter(pathToFile);
 				writer.write("{}");
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -71,13 +73,50 @@ public class Configuration {
 		}
 	}
 
-	public Object get(String key) {
-		return configuration.get(key);
+	private Object obt(String key, JSONObject parent) {
+		if (key.contains(".")) {
+			String[] names = key.split("\\.");
+			Object object = null;
+			for (int i = 0; i < names.length; i++) {
+				if ((i + 1) != names.length) {
+					if (i == 0) {
+						if (parent.has(names[i]))
+							object = parent.get(names[i]);
+						else
+							break;
+					} else {
+						if (!(object instanceof JSONObject))
+							break;
+						if (((JSONObject) object).has(names[i]))
+							object = ((JSONObject) object).get(names[i]);
+						else
+							break;
+					}
+				} else {
+					if ((object instanceof JSONObject)) {
+						JSONObject json = (JSONObject) object;
+						if (json.has(names[i])) {
+							return json.get(names[i]);
+						} else
+							break;
+					} else
+						break;
+				}
+			}
+		} else {
+			if (configuration.has(key))
+				return configuration.get(key);
+		}
+		return null;
 	}
 
-	public <E extends Object> E get(Class<E> expected, String key) {
+	public Object get(String key) {
+		return this.obt(key, configuration);
+	}
+
+	public <E> E get(Class<E> expected, String key) {
 		try {
-			return expected.cast(configuration.get(key));
+			return expected.cast(this.get(key));
 		} catch (ClassCastException e) {
 			Bot.currentBot.getLogger().severe("Cannot cast object to " + expected.getSimpleName() + "!");
 			return null;
@@ -86,7 +125,7 @@ public class Configuration {
 
 	public String getString(String key) {
 		try {
-			return (String) configuration.get(key);
+			return (String) this.get(key);
 		} catch (ClassCastException e) {
 			Bot.currentBot.getLogger().severe("Cannot cast object to string!");
 			return null;
@@ -95,7 +134,7 @@ public class Configuration {
 
 	public int getInt(String key) {
 		try {
-			return (int) configuration.get(key);
+			return (int) this.get(key);
 		} catch (ClassCastException e) {
 			Bot.currentBot.getLogger().severe("Cannot cast object to int!");
 			return 0;
@@ -104,7 +143,7 @@ public class Configuration {
 
 	public double getDouble(String key) {
 		try {
-			return (double) configuration.get(key);
+			return (double) this.get(key);
 		} catch (ClassCastException e) {
 			Bot.currentBot.getLogger().severe("Cannot cast object to double!");
 			return 0;
@@ -113,7 +152,7 @@ public class Configuration {
 
 	public long getLong(String key) {
 		try {
-			return (long) configuration.get(key);
+			return (long) this.get(key);
 		} catch (ClassCastException e) {
 			Bot.currentBot.getLogger().severe("Cannot cast object to long!");
 			return 0;
@@ -122,7 +161,7 @@ public class Configuration {
 
 	public short getShort(String key) {
 		try {
-			return (short) configuration.get(key);
+			return (short) this.get(key);
 		} catch (ClassCastException e) {
 			Bot.currentBot.getLogger().severe("Cannot cast object to short!");
 			return 0;
@@ -131,7 +170,7 @@ public class Configuration {
 
 	public float getFloat(String key) {
 		try {
-			return (float) configuration.get(key);
+			return (float) this.get(key);
 		} catch (ClassCastException e) {
 			Bot.currentBot.getLogger().severe("Cannot cast object to float!");
 			return 0;
@@ -140,27 +179,59 @@ public class Configuration {
 
 	public byte getByte(String key) {
 		try {
-			return (byte) configuration.get(key);
+			return (byte) this.get(key);
 		} catch (ClassCastException e) {
 			Bot.currentBot.getLogger().severe("Cannot cast object to byte!");
 			return 0;
 		}
 	}
 
+	/**
+	 * Gets a generic object collection.
+	 * If collection does not exists, will return null.
+	 * 
+	 * @param key the key to the list
+	 * @return
+	 */
 	public Collection<Object> getCollection(String key) {
 		Collection<Object> res = new ArrayList<>();
 
-		if (configuration.has(key)) {
-			configuration.getJSONArray(key).forEach(a -> res.add(a));
+		if (contains(key)) {
+			if (get(key) instanceof JSONArray)
+				((JSONArray) get(key)).forEach(res::add);
 
 			return res;
 		} else {
 			return null;
 		}
 	}
+	
+	
+	/**
+	 * Returns a collection with the type you choose.
+	 * 
+	 * @param expected the type of the collection.
+	 * @param key the location of the collection.
+	 * @return the collection if casted, will return an empty array on cast failure.
+	 */
+	public <E> Collection<E> getCollectionByClass(Class<E> expected, String key) {
+		Collection<E> res = new ArrayList<>();
+
+		if (contains(key))
+			if (get(key) instanceof JSONArray)
+				((JSONArray) get(key)).forEach(a -> {
+					try {
+						E casted = expected.cast(a);
+						res.add(casted);
+					} catch (ClassCastException ex) {
+						Bot.currentBot.getLogger().severe("Cannot cast object to " + expected.getSimpleName());
+					}
+				});
+		return res;
+	}
 
 	public boolean contains(String key) {
-		return configuration.has(key);
+		return this.get(key) != null;
 	}
 
 	public JSONObject toJsonObject() {
@@ -177,14 +248,14 @@ public class Configuration {
 
 	private ConfigurationSection getSection(String key, JSONObject parent) {
 		ConfigurationSection res;
-		if (!parent.has(key))
+		if (!contains(key))
 			return null;
-		if (!(parent.get(key) instanceof JSONObject))
+		if (!(obt(key, parent) instanceof JSONObject))
 			return null;
 		else {
 			res = new ConfigurationSection() {
 
-				JSONObject section = parent.getJSONObject(key);
+				private JSONObject section = (JSONObject) obt(key, parent);
 
 				@Override
 				public ConfigurationSection getSubSection(String key) {
@@ -194,7 +265,7 @@ public class Configuration {
 				@Override
 				public short getShort(String key) {
 					try {
-						return (short) section.get(key);
+						return (short) this.get(key);
 					} catch (ClassCastException e) {
 						Bot.currentBot.getLogger().severe("Cannot cast object to short!");
 						return 0;
@@ -203,17 +274,24 @@ public class Configuration {
 
 				@Override
 				public long getLong(String key) {
-					return 0;
+					try {
+						return (long) this.get(key);
+					} catch (ClassCastException e) {
+						Bot.currentBot.getLogger().severe("Cannot cast object to long!");
+						return 0;
+					}
 				}
 
 				@Override
-				public Collection<Object> getList(String key) {
+				public Collection<Object> getCollection(String key) {
 					Collection<Object> res = new ArrayList<>();
 
-					if (section.has(key)) {
-						section.getJSONArray(key).forEach(a -> res.add(a));
-
-						return res;
+					if (this.contains(key)) {
+						if (this.get(key) instanceof JSONArray) {
+							((JSONArray) get(key)).forEach(res::add);
+							return res;
+						} else
+							return null;
 					} else {
 						return null;
 					}
@@ -222,7 +300,7 @@ public class Configuration {
 				@Override
 				public int getInt(String key) {
 					try {
-						return (int) section.get(key);
+						return (int) this.get(key);
 					} catch (ClassCastException e) {
 						Bot.currentBot.getLogger().severe("Cannot cast object to int!");
 						return 0;
@@ -232,7 +310,7 @@ public class Configuration {
 				@Override
 				public float getFloat(String key) {
 					try {
-						return (float) section.get(key);
+						return (float) this.get(key);
 					} catch (ClassCastException e) {
 						Bot.currentBot.getLogger().severe("Cannot cast object to float!");
 						return 0;
@@ -242,7 +320,7 @@ public class Configuration {
 				@Override
 				public double getDouble(String key) {
 					try {
-						return (double) configuration.get(key);
+						return (double) this.get(key);
 					} catch (ClassCastException e) {
 						Bot.currentBot.getLogger().severe("Cannot cast object to double!");
 						return 0;
@@ -252,7 +330,7 @@ public class Configuration {
 				@Override
 				public <E> E get(Class<E> expected, String key) {
 					try {
-						return expected.cast(section.get(key));
+						return expected.cast(this.get(key));
 					} catch (ClassCastException e) {
 						Bot.currentBot.getLogger().severe("Cannot cast object to " + expected.getSimpleName() + "!");
 						return null;
@@ -261,13 +339,13 @@ public class Configuration {
 
 				@Override
 				public Object get(String key) {
-					return section.get(key);
+					return obt(key, section);
 				}
 
 				@Override
 				public String getString(String key) {
 					try {
-						return (String) section.get(key);
+						return (String) this.get(key);
 					} catch (ClassCastException e) {
 						Bot.currentBot.getLogger().severe("Cannot cast object to string!");
 						return null;
@@ -277,7 +355,7 @@ public class Configuration {
 				@Override
 				public byte getByte(String key) {
 					try {
-						return (byte) configuration.get(key);
+						return (byte) this.get(key);
 					} catch (ClassCastException e) {
 						Bot.currentBot.getLogger().severe("Cannot cast object to byte!");
 						return 0;
@@ -296,22 +374,45 @@ public class Configuration {
 
 				@Override
 				public boolean contains(String key) {
-					return section.has(key);
+					return this.get(key) != null;
 				}
 			};
 		}
 		return res;
 	}
 
-	public void put(String key, Object value) {
-		configuration.put(key, value);
+	private void put(String key, Object value, JSONObject parent) {
+		if (key.contains(".")) {
+			String[] names = key.split("\\.");
+			StringBuilder builder = new StringBuilder();
+			String parenthesis = "";
+			for (int i = 1; i < names.length; i++) {
+				builder.append("{\"" + names[i] + "\": ");
+				parenthesis += "}";
+			}
+			if (value instanceof ISerializable)
+				builder.append(((ISerializable) value).serialize());
+			else
+				builder.append(JSONObject.valueToString(value));
+			builder.append(parenthesis);
+
+			JSONObject toPut = new JSONObject(builder.toString());
+
+			parent.put(names[0], toPut);
+		} else {
+			parent.put(key, value);
+		}
+	}
+	
+	public void set(String key, Object value) {
+		put(key, value, configuration);
 	}
 
 	public void save() {
 		FileWriter writer = null;
 		try {
 			writer = new FileWriter(configFile);
-			writer.write(configuration.toString());
+			writer.write(JSONPrettyPrinter.prettyPrint(configuration));
 		} catch (IOException e) {
 			Bot.currentBot.getLogger().severe("Cannot save config! Exception occurred!");
 			e.printStackTrace();

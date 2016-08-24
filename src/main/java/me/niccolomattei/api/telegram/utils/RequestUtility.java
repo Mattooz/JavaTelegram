@@ -1,8 +1,11 @@
 package me.niccolomattei.api.telegram.utils;
 
+import me.niccolomattei.api.telegram.Bot;
+
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -10,20 +13,16 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.net.ssl.HttpsURLConnection;
-
-import me.niccolomattei.api.telegram.Bot;
-
 public class RequestUtility {
 
-	private HttpsURLConnection conn;
+	private HttpURLConnection conn;
 	private DataOutputStream out;
 	private List<RequestParam> requestParams;
 
 	public RequestUtility(String rurl) throws IOException {
 		URL url = new URL(rurl);
 
-		conn = (HttpsURLConnection) url.openConnection();
+		conn = (HttpURLConnection) url.openConnection();
 
 		conn.setRequestMethod("POST");
 		conn.setRequestProperty("User-Agent", Bot.USER_AGENT);

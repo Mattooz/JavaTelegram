@@ -11,5 +11,9 @@ public class Permission {
 	public String getPermission() {
 		return permission;
 	}
-	
+
+	@Override
+	public String toString() {
+		return permission;
+	}
 }

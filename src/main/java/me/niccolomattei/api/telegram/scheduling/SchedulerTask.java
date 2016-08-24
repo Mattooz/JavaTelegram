@@ -4,17 +4,17 @@ import java.util.UUID;
 
 public interface SchedulerTask extends Runnable {
 
-	public abstract void runTask();
+	void runTask();
 	
-	public abstract void runTaskLater(long delay);
+	void runTaskLater(long delay);
 	
-	public abstract void runRepeatingTask(long delay, long period);
+	void runRepeatingTask(long delay, long period);
 	
-	public abstract void cancel();
+	void cancel();
 	
-	public abstract UUID getId();
-	
-	public abstract void setId(UUID id);
+	UUID getId();
+
+	void setId(UUID id);
 
 	
 }

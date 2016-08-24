@@ -1,21 +1,24 @@
 package me.niccolomattei.api.telegram.permission;
 
+import me.niccolomattei.api.telegram.User;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
 public class PermissionGroup {
 
-	Collection<Permission> permissions = null;
-	String unlocalizedID = null;
-	
-	public PermissionGroup(String unlocalizedID, Permission... permissions) {
+	private List<Permission> permissions = null;
+	private String unlocalizedID = null;
+	private List<Integer> users = null;
+	private String name = null;
+
+	public PermissionGroup(String unlocalizedID, String name, Permission... permissions) {
 		this.permissions = Arrays.asList(permissions);
+		this.name = name;
 		this.unlocalizedID = unlocalizedID;
-	}
-	
-	public PermissionGroup(Collection<Permission> permissions) {
-		this.permissions = (List<Permission>) permissions;
+		this.users = new ArrayList<>();
 	}
 	
 	public void addPermission(Permission... permissions) {
@@ -25,7 +28,27 @@ public class PermissionGroup {
 	public void removePermission(Permission permission) {
 		this.permissions.remove(permission);
 	}
-	
+
+	public void addUser(User... users) {
+		for(User user : users) this.users.add(user.getId());
+	}
+
+	public void addUserIds(Integer... userIds) {
+		this.users.addAll(Arrays.asList(userIds));
+	}
+
+	public Collection<Integer> getUsers() {
+		return users;
+	}
+
+	public Collection<Permission> getPermissions() {
+		return permissions;
+	}
+
+	public String getUnlocalizedID() {
+		return unlocalizedID;
+	}
+
 	public Permission forName(String s) {
 		for(Permission p : permissions) {
 			if(p.getPermission().equalsIgnoreCase(s)) {
@@ -33,5 +56,9 @@ public class PermissionGroup {
 			}
 		}
 		return null;
+	}
+
+	public String getName() {
+		return name;
 	}
 }

@@ -9,7 +9,7 @@ public class Logger {
 	}
 	
 	public void info(String message) {
-		System.out.println("[" + prefix + " - INFO] " + message);
+        System.out.println("[" + prefix + " - INFO] " + message);
 	}
 	
 	public void severe(String message) {

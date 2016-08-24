@@ -1,16 +1,5 @@
 package me.niccolomattei.api.telegram;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import me.niccolomattei.api.telegram.commands.Commands;
 import me.niccolomattei.api.telegram.configuration.Configuration;
 import me.niccolomattei.api.telegram.events.EventManager;
@@ -19,6 +8,7 @@ import me.niccolomattei.api.telegram.events.defaults.ReceiveMessageEvent;
 import me.niccolomattei.api.telegram.keyboard.ReplyMarkup;
 import me.niccolomattei.api.telegram.logger.Logger;
 import me.niccolomattei.api.telegram.parsing.Parser;
+import me.niccolomattei.api.telegram.permission.PermissionManager;
 import me.niccolomattei.api.telegram.scheduling.Scheduler;
 import me.niccolomattei.api.telegram.scheduling.SyncScheduler;
 import me.niccolomattei.api.telegram.utils.MultipartUtility;
@@ -27,6 +17,12 @@ import me.niccolomattei.api.telegram.utils.text.ParsingMode;
 import me.niccolomattei.api.telegram.utils.text.RawText;
 import me.niccolomattei.api.telegram.utils.text.TextBase;
 import me.niccolomattei.api.telegram.utils.text.TextComponent;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.*;
 
 /**
  * Created by Utente on 21/10/2015.
@@ -39,7 +35,8 @@ public class Bot {
 	private Parser parser = new Parser();
 	private Logger logger = new Logger("Bot");
 	private Configuration config;
-	private ExecutorService executor;
+	private PermissionManager manager;
+	private volatile ExecutorService executor;
 
 	private Message latestMessage = null;
 	private Scheduler scheduler;
@@ -47,13 +44,26 @@ public class Bot {
 	private String token;
 	public static Bot currentBot = null;
 
-	public Bot(String token) {
+	public Bot(String token, boolean enableConfig, boolean enablePermission) {
 		this.token = token;
 		scheduler = new SyncScheduler();
 		currentBot = this;
 		executor = Executors.newFixedThreadPool(10);
-		Configuration.generateDefault("config.json");
-		config = new Configuration(Configuration.defaultPath + "config.json");
+		if(enableConfig) {
+			Configuration.generateDefault("config.json");
+			config = new Configuration(Configuration.defaultPath + "config.json");
+		}
+		if(enablePermission) {
+			manager = new PermissionManager(this);
+		}
+	}
+	
+	public Bot(String token) {
+		this(token, true, true);
+	}
+
+	public PermissionManager getPermissionManager() {
+		return manager;
 	}
 
 	public Scheduler getScheduler() {
@@ -92,9 +102,7 @@ public class Bot {
 
 				String res = utils.close();
 
-				logger.info("[DEBUG] " + res);
-
-				return parser.parseUser(new JSONObject(res).getJSONObject("result"));
+				return parser.parseUser(new JSONObject(res).getJSONObject("result"), this);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -207,7 +215,7 @@ public class Bot {
 
 				utils.addParameter("chat_id", chat_id);
 				utils.addParameter("photo", photo);
-				if (caption != null && !caption.equalsIgnoreCase(""))
+				if (caption != null)
 					utils.addParameter("caption", caption);
 				utils.close();
 			} catch (IOException e) {
@@ -226,7 +234,7 @@ public class Bot {
 
 				util.addFormField("chat_id", chat_id);
 				util.addFilePart("photo", photo);
-				if (caption != null && !caption.equalsIgnoreCase(""))
+				if (caption != null)
 					util.addFormField("caption", caption);
 
 				util.finish();
@@ -256,8 +264,6 @@ public class Bot {
 
 				util.finish();
 
-				for (String s : util.finish())
-					System.out.println(s);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -286,22 +292,19 @@ public class Bot {
 	}
 	
 	public Chat getChat(String chat_id) {
-		Future<Chat> f = executor.submit(new Callable<Chat>() {
-			@Override
-			public Chat call() throws Exception {
-				RequestUtility utility = new RequestUtility(API + token + "/getChat");
-				
-				utility.addParameter("chat_id", chat_id);
-				String close = null;
-				try {
-					close = utility.close();
-				} catch (IOException e){
-					logger.severe("Chat id is either null or the chat is non-existant");
-					return null;
-				}
-				return parser.parseChat(new JSONObject(close));
-			}
-		});
+		Future<Chat> f = executor.submit(() -> {
+            RequestUtility utility = new RequestUtility(API + token + "/getChat");
+
+            utility.addParameter("chat_id", chat_id);
+            String close = null;
+            try {
+                close = utility.close();
+            } catch (IOException e){
+                logger.severe("Chat id is either null or the chat is non-existant");
+                return null;
+            }
+            return parser.parseChat(new JSONObject(close));
+        });
 		
 		try {
 			return f.get();
@@ -312,24 +315,21 @@ public class Bot {
 	}
 	
 	public ChatMember[] getChatAdministrator(String chat_id) {
-		Future<ChatMember[]> f = executor.submit(new Callable<ChatMember[]>() {
-			@Override
-			public ChatMember[] call() throws Exception {
-				RequestUtility utility = new RequestUtility(API + token + "/getChat");
-				
-				utility.addParameter("chat_id", chat_id);
-				String close = null;
-				try {
-					close = utility.close();
-				} catch (IOException e){
-					logger.severe("Chat id is either null or the chat is non-existant");
-					return null;
-				}
-				JSONArray member = new JSONObject(close).getJSONArray("result");
-				
-				return parser.parseMultipleChatMembers(member);
-			}
-		});
+		Future<ChatMember[]> f = executor.submit(() -> {
+            RequestUtility utility = new RequestUtility(API + token + "/getChat");
+
+            utility.addParameter("chat_id", chat_id);
+            String close = null;
+            try {
+                close = utility.close();
+            } catch (IOException e){
+                logger.severe("Chat id is either null or the chat is non-existant");
+                return null;
+            }
+            JSONArray member = new JSONObject(close).getJSONArray("result");
+
+            return parser.parseMultipleChatMembers(member);
+        });
 		
 		try {
 			return f.get();
@@ -340,22 +340,19 @@ public class Bot {
 	}
 	
 	public int getChatMemberCount(String chat_id) {
-		Future<Integer> f = executor.submit(new Callable<Integer>() {
-			@Override
-			public Integer call() throws Exception {
-				RequestUtility utility = new RequestUtility(API + token + "/getChat");
-				
-				utility.addParameter("chat_id", chat_id);
-				String close = null;
-				try {
-					close = utility.close();
-				} catch (IOException e){
-					logger.severe("Chat id is either null or the chat is non-existant");
-					return null;
-				}
-				return new JSONObject(close).getInt("result");
-			}
-		});
+		Future<Integer> f = executor.submit(() -> {
+            RequestUtility utility = new RequestUtility(API + token + "/getChat");
+
+            utility.addParameter("chat_id", chat_id);
+            String close = null;
+            try {
+                close = utility.close();
+            } catch (IOException e){
+                logger.severe("Chat id is either null or the chat is non-existant");
+                return null;
+            }
+            return new JSONObject(close).getInt("result");
+        });
 		
 		try {
 			return f.get();
@@ -366,23 +363,20 @@ public class Bot {
 	}
 	
 	public ChatMember getChatMember(String chat_id, String user_id) {
-		Future<ChatMember> f = executor.submit(new Callable<ChatMember>() {
-			@Override
-			public ChatMember call() throws Exception {
-				RequestUtility utility = new RequestUtility(API + token + "/getChat");
-				
-				utility.addParameter("chat_id", chat_id);
-				utility.addParameter("user_id", user_id);
-				String close = null;
-				try {
-					close = utility.close();
-				} catch (IOException e){
-					logger.severe("Chat id is either null or the chat is non-existant");
-					return null;
-				}
-				return parser.parseChatMember(new JSONObject(close).getJSONObject("result"));
-			}
-		});
+		Future<ChatMember> f = executor.submit(() -> {
+            RequestUtility utility = new RequestUtility(API + token + "/getChat");
+
+            utility.addParameter("chat_id", chat_id);
+            utility.addParameter("user_id", user_id);
+            String close = null;
+            try {
+                close = utility.close();
+            } catch (IOException e){
+                logger.severe("Chat id is either null or the chat is non-existant");
+                return null;
+            }
+            return parser.parseChatMember(new JSONObject(close).getJSONObject("result"));
+        });
 		
 		try {
 			return f.get();
@@ -410,7 +404,7 @@ public class Bot {
 					if (responses.getJSONObject(i).has("message")) {
 						JSONObject message = responses.getJSONObject(i).getJSONObject("message");
 
-						latestMessage = parser.parseMessage(message);
+						latestMessage = parser.parseMessage(message, this);
 
 						logger.info("Message received! Text: " + latestMessage.getText() + " - Sender: [First name = "
 								+ latestMessage.getFrom().getFirst_name() + ", Second name (if present) = "
@@ -427,7 +421,7 @@ public class Bot {
 					} else if (responses.getJSONObject(i).has("edited_message")) {
 						JSONObject message = responses.getJSONObject(i).getJSONObject("edited_message");
 
-						Message edited_message = parser.parseMessage(message);
+						Message edited_message = parser.parseMessage(message, this);
 
 						logger.info("Message Modified: " + edited_message.getText());
 
@@ -436,6 +430,11 @@ public class Bot {
 				}
 			}
 		});
+	}
+	
+	public void shutdown(int exitCode) {
+		executor.shutdownNow();
+		System.exit(exitCode);
 	}
 
 }

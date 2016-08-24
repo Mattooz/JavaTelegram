@@ -1,9 +1,9 @@
 package me.niccolomattei.api.telegram.configuration;
 
+import org.json.JSONObject;
+
 import java.util.Collection;
 import java.util.Set;
-
-import org.json.JSONObject;
 
 public interface ConfigurationSection {
 	
@@ -25,7 +25,7 @@ public interface ConfigurationSection {
 	
 	byte getByte(String key);
 	
-	Collection<Object> getList(String key);
+	Collection<Object> getCollection(String key);
 	
 	ConfigurationSection getSubSection(String key);
 	

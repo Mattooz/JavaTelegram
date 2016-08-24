@@ -74,6 +74,6 @@ public class Chat implements BotObject {
     }
 
     public enum ChatType {
-        PRIVATE, GROUP, CHANNEL, SUPERGROUP;
+        PRIVATE, GROUP, CHANNEL, SUPERGROUP
     }
 }

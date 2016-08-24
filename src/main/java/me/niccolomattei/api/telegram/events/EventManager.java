@@ -7,7 +7,7 @@ import java.util.List;
 
 public class EventManager {
 
-	private static List<EventHandler> ehs = new ArrayList<EventHandler>();
+	private static List<EventHandler> ehs = new ArrayList<>();
 
 	public static void registerEvent(EventHandler event) {
 		ehs.add(event);
@@ -21,16 +21,13 @@ public class EventManager {
 		for (EventHandler eh : ehs) {
 			for (Method m : eh.getClass().getMethods()) {
 				if (m.isAnnotationPresent(EventMethod.class)) {
-					EventMethod em = m.getAnnotation(EventMethod.class);
-					if (event.getEventName().equalsIgnoreCase(em.eventName())) {
-						try {
-							m.invoke(eh, new Object[] { event });
-						} catch (IllegalAccessException e) {
-							e.printStackTrace();
-						} catch (IllegalArgumentException e) {
-							e.printStackTrace();
-						} catch (InvocationTargetException e) {
-							e.printStackTrace();
+					if (m.getParameterCount() == 1) {
+						if (m.getParameterTypes()[0].isAssignableFrom(event.getClass())) {
+							try {
+								m.invoke(eh, event);
+							} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+								e.printStackTrace();
+							}
 						}
 					}
 				}

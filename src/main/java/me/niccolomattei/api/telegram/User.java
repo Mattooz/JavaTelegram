@@ -1,10 +1,11 @@
 package me.niccolomattei.api.telegram;
 
-import java.util.List;
-
 import me.niccolomattei.api.telegram.permission.Permission;
 import me.niccolomattei.api.telegram.permission.PermissionGroup;
 import me.niccolomattei.api.telegram.permission.Permissionable;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Utente on 23/10/2015.
@@ -15,8 +16,7 @@ public class User implements BotObject, Permissionable {
     private String first_name;
     private String last_name;
     private String username;
-    List<Permission> permission;
-    PermissionGroup group;
+    private Bot currentBot;
 
     public User(int id, String first_name) {
         this.id = id;
@@ -29,11 +29,12 @@ public class User implements BotObject, Permissionable {
         this.username = username;
     }
 
-    public User(int id, String first_name, String last_name, String username) {
+    public User(int id, String first_name, String last_name, String username, Bot bot) {
         this.id = id;
         this.first_name = first_name;
         this.last_name = last_name;
         this.username = username;
+        this.currentBot = bot;
     }
 
     public int getId() {
@@ -73,33 +74,37 @@ public class User implements BotObject, Permissionable {
     }
 
 	@Override
-	public List<Permission> getPermission() {
-		return permission;
+	public List<Permission> getPermissions() {
+        return currentBot.getPermissionManager().getPermissions(this);
 	}
 
 	@Override
 	public boolean hasPermission(Permission p) {
-		return permission.contains(p);
+		return currentBot.getPermissionManager().hasPermission(this, p);
 	}
 
 	@Override
 	public PermissionGroup getPermissionGroup() {
-		 return group;
+		 return currentBot.getPermissionManager().getUserPermissionGroup(id);
 	}
 
 	@Override
-	public void addPermission(Permission permission) {
-		this.permission.add(permission);
+	public void setPermission(Permission... permission) {
+		currentBot.getPermissionManager().setUser(this, permission);
 	}
 
 	@Override
 	public void setPermissionGroup(PermissionGroup group) {
-		this.group = group;
+		currentBot.getPermissionManager().addUserToGroup(this, group.getUnlocalizedID());
 	}
 
 	@Override
-	public void addPermission(String s) {
-		addPermission(new Permission(s));
+	public void setPermission(String... s) {
+		List<Permission> toAdd = new ArrayList<>();
+        for(String str : s) {
+            toAdd.add(new Permission(str));
+        }
+        setPermission(toAdd.toArray(new Permission[toAdd.size()]));
 	}
 
 	@Override

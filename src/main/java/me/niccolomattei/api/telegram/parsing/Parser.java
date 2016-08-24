@@ -1,25 +1,12 @@
 package me.niccolomattei.api.telegram.parsing;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-
+import me.niccolomattei.api.telegram.*;
+import me.niccolomattei.api.telegram.Chat.ChatType;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import me.niccolomattei.api.telegram.Audio;
-import me.niccolomattei.api.telegram.Chat;
-import me.niccolomattei.api.telegram.Chat.ChatType;
-import me.niccolomattei.api.telegram.ChatMember;
-import me.niccolomattei.api.telegram.Contact;
-import me.niccolomattei.api.telegram.Document;
-import me.niccolomattei.api.telegram.Location;
-import me.niccolomattei.api.telegram.Message;
-import me.niccolomattei.api.telegram.PhotoSize;
-import me.niccolomattei.api.telegram.Sticker;
-import me.niccolomattei.api.telegram.User;
-import me.niccolomattei.api.telegram.Venue;
-import me.niccolomattei.api.telegram.Video;
-import me.niccolomattei.api.telegram.Voice;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 
 public class Parser {
 	
@@ -32,7 +19,7 @@ public class Parser {
 		return null;
 	}
 
-	public Message parseMessage(JSONObject message) {
+	public Message parseMessage(JSONObject message, Bot bot) {
 		int message_id = message.has("message_id") ? message.getInt("message_id") : -1;
 		JSONObject from = message.has("from") ? message.getJSONObject("from") : null;
 		int date = message.has("date") ? message.getInt("date") : 0;
@@ -63,19 +50,19 @@ public class Parser {
 
 		return parseMessage(message_id, from, date, chat, forward_from, forward_date, reply_to_message, text, audio,
 				document, photo, sticker, video, voice, caption, contact, location, venue, new_chat_participant,
-				left_chat_participant, new_chat_title, new_chat_photo, delete_chat_photo, group_chat_created);
+				left_chat_participant, new_chat_title, new_chat_photo, delete_chat_photo, group_chat_created, bot);
 	}
 
 	public Message parseMessage(int message_id, JSONObject from, int date, JSONObject chat, JSONObject forward_from,
 			int forward_date, JSONObject reply_to_message, String text, JSONObject audio, JSONObject document,
 			JSONArray photo, JSONObject sticker, JSONObject video, JSONObject voice, String caption, JSONObject contact,
 			JSONObject location, JSONObject venue, JSONObject new_chat_participant, JSONObject left_chat_participant,
-			String new_chat_title, JSONArray new_chat_photo, boolean delete_photo_chat, boolean group_chat_created) {
+			String new_chat_title, JSONArray new_chat_photo, boolean delete_photo_chat, boolean group_chat_created, Bot bot) {
 		Message result = null;
 
-		User r_from = parseUser(from);
+		User r_from = parseUser(from, bot);
 		Chat r_chat = parseChat(chat);
-		User r_forward_from = parseUser(forward_from);
+		User r_forward_from = parseUser(forward_from, bot);
 		Audio r_audio = parseAudio(audio);
 		Document r_document = parseDocument(document);
 		PhotoSize[] r_photo = parseMultiplePhotoSizes(photo);
@@ -85,8 +72,8 @@ public class Parser {
 		Venue r_venue = null;
 		Contact r_contact = parseContact(contact);
 		Location r_location = parseLocation(location);
-		User r_new_chat_participant = parseUser(new_chat_participant);
-		User r_left_chat_participant = parseUser(left_chat_participant);
+		User r_new_chat_participant = parseUser(new_chat_participant, bot);
+		User r_left_chat_participant = parseUser(left_chat_participant, bot);
 		PhotoSize[] r_new_chat_photo = parseMultiplePhotoSizes(new_chat_photo);
 
 		result = new Message(message_id, r_from, date, r_chat, r_forward_from, forward_date, reply_to_message, text,
@@ -219,7 +206,7 @@ public class Parser {
 		return null;
 	}
 
-	public User parseUser(JSONObject user) {
+	public User parseUser(JSONObject user, Bot bot) {
 		User result = null;
 		if (user != null) {
 			int id = user.has("id") ? user.getInt("id") : -1;
@@ -227,7 +214,7 @@ public class Parser {
 			String last_name = user.has("last_name") ? user.getString("last_name") : "null";
 			String username = user.has("username") ? user.getString("username") : "null";
 
-			result = new User(id, first_name, last_name, username);
+			result = new User(id, first_name, last_name, username, bot);
 
 			return result;
 		}

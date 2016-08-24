@@ -4,18 +4,18 @@ import java.util.List;
 
 public interface Permissionable {
 	
-	List<Permission> getPermission();
+	List<Permission> getPermissions();
 	
-	void addPermission(Permission permission);
+	void setPermission(Permission... permission);
 	
-	void addPermission(String s);
+	void setPermission(String... s);
 	
 	boolean hasPermission(Permission p);
 	
 	boolean hasPermission(String s);
 	
 	/**
-	 * @return null if the user is not on a group.
+	 * @return null if the user is not in a group.
 	 */
 	PermissionGroup getPermissionGroup();
 	

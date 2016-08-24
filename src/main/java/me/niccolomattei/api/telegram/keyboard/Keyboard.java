@@ -1,13 +1,12 @@
 package me.niccolomattei.api.telegram.keyboard;
 
-import java.util.Arrays;
-import java.util.List;
-
-import org.json.JSONObject;
-
 import me.niccolomattei.api.telegram.serialization.Ignorable;
 import me.niccolomattei.api.telegram.serialization.IgnoreClassName;
 import me.niccolomattei.api.telegram.serialization.JSONSerializator;
+import org.json.JSONObject;
+
+import java.util.Arrays;
+import java.util.List;
 
 @IgnoreClassName
 public class Keyboard implements ReplyMarkup {
@@ -44,7 +43,7 @@ public class Keyboard implements ReplyMarkup {
 	}
 
 	public KeyboardButton[][] getBidimensionalButtonsArray() {
-		KeyboardButton[][] res = null;
+		KeyboardButton[][] res;
 
 		res = new KeyboardButton[list.size()][];
 
