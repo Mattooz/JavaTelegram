@@ -16,7 +16,6 @@ import me.niccolomattei.api.telegram.utils.RequestUtility;
 import me.niccolomattei.api.telegram.utils.text.ParsingMode;
 import me.niccolomattei.api.telegram.utils.text.RawText;
 import me.niccolomattei.api.telegram.utils.text.TextBase;
-import me.niccolomattei.api.telegram.utils.text.TextComponent;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -29,300 +28,293 @@ import java.util.concurrent.*;
  */
 public class Bot {
 
-	public static final String API = "https://api.telegram.org/bot";
-	public static final String USER_AGENT = "Mozilla/5.0";
-	public static final String MULTIPART = "multipart/form-data";
-	private Parser parser = new Parser();
-	private Logger logger = new Logger("Bot");
-	private Configuration config;
-	private PermissionManager manager;
-	private volatile ExecutorService executor;
+    public static final String API = "https://api.telegram.org/bot";
+    public static final String USER_AGENT = "Mozilla/5.0";
+    public static final String MULTIPART = "multipart/form-data";
+    private Parser parser = new Parser();
+    private Logger logger = new Logger("Bot");
+    private Configuration config;
+    private PermissionManager manager;
+    private volatile ExecutorService executor;
 
-	private Message latestMessage = null;
-	private Scheduler scheduler;
+    private Message latestMessage = null;
+    private Scheduler scheduler;
 
-	private String token;
-	public static Bot currentBot = null;
+    private String token;
+    public static Bot currentBot = null;
 
-	public Bot(String token, boolean enableConfig, boolean enablePermission) {
-		this.token = token;
-		scheduler = new SyncScheduler();
-		currentBot = this;
-		executor = Executors.newFixedThreadPool(10);
-		if(enableConfig) {
-			Configuration.generateDefault("config.json");
-			config = new Configuration(Configuration.defaultPath + "config.json");
-		}
-		if(enablePermission) {
-			manager = new PermissionManager(this);
-		}
-	}
-	
-	public Bot(String token) {
-		this(token, true, true);
-	}
+    public Bot(String token, boolean enableConfig, boolean enablePermission) {
+        this.token = token;
+        scheduler = new SyncScheduler();
+        currentBot = this;
+        executor = Executors.newFixedThreadPool(10);
+        if (enableConfig) {
+            Configuration.generateDefault("config.json");
+            config = new Configuration(Configuration.defaultPath + "config.json");
+        }
+        if (enablePermission) {
+            manager = new PermissionManager(this);
+        }
+    }
 
-	public PermissionManager getPermissionManager() {
-		return manager;
-	}
+    public Bot(String token) {
+        this(token, true, true);
+    }
 
-	public Scheduler getScheduler() {
-		return scheduler;
-	}
+    public PermissionManager getPermissionManager() {
+        return manager;
+    }
 
-	public Logger getLogger() {
-		return logger;
-	}
-	
-	public Configuration getConfig() {
-		return config;
-	}
-	
-	public void executeSafely(Runnable runnable) {
-		executor.submit(runnable);
-	}
-	
-	public <E> E executeSafely(Callable<E> callable) {
-		Future<E> f = executor.submit(callable);
-		try {
-			return f.get();
-		} catch (InterruptedException | ExecutionException e) {
-			System.err.println("Cannot fetch result from callable: an exception occurred!");
-			return null;
-		}
-	}
+    public Scheduler getScheduler() {
+        return scheduler;
+    }
 
-	public User getMe() {
-		Future<User> future = executor.submit(() -> {
-			String url = API + token + "/getMe";
-			RequestUtility utils = null;
+    public Logger getLogger() {
+        return logger;
+    }
 
-			try {
-				utils = new RequestUtility(url);
+    public Configuration getConfig() {
+        return config;
+    }
 
-				String res = utils.close();
+    public void executeSafely(Runnable runnable) {
+        executor.submit(runnable);
+    }
 
-				return parser.parseUser(new JSONObject(res).getJSONObject("result"), this);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			return null;
-		});
-		try {
-			return future.get();
-		} catch (InterruptedException | ExecutionException e) {
-			return null;
-		}
+    public <E> E executeSafely(Callable<E> callable) {
+        Future<E> f = executor.submit(callable);
+        try {
+            return f.get();
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("Cannot fetch result from callable: an exception occurred!");
+            return null;
+        }
+    }
 
-	}
+    public User getMe() {
+        Future<User> future = executor.submit(() -> {
+            String url = API + token + "/getMe";
+            RequestUtility utils = null;
 
-	private JSONArray getUpdates(int offset) {
-		String url = API + token + "/getUpdates";
-		RequestUtility utils = null;
+            try {
+                utils = new RequestUtility(url);
 
-		try {
-			utils = new RequestUtility(url);
+                String res = utils.close();
 
-			utils.addParameter("offset", offset + "");
+                return parser.parseUser(new JSONObject(res).getJSONObject("result"), this);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        });
+        try {
+            return future.get();
+        } catch (InterruptedException | ExecutionException e) {
+            return null;
+        }
 
-			String res = utils.close();
-			return new JSONObject(res).getJSONArray("result");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
+    }
 
-	public void sendMessage(TextBase base, String chat_id, String reply_to_message_id, boolean disable_web_preview,
-			boolean disable_notification, ReplyMarkup markup) {
-		executor.submit(() -> {
-			String url = "https://api.telegram.org/bot" + token + "/sendMessage";
-			RequestUtility utils = null;
+    private JSONArray getUpdates(int offset) {
+        String url = API + token + "/getUpdates";
+        RequestUtility utils = null;
 
-			try {
-				utils = new RequestUtility(url);
+        try {
+            utils = new RequestUtility(url);
 
-				utils.addParameter("chat_id", chat_id);
-				if (disable_web_preview)
-					utils.addParameter("disable_web_preview", disable_web_preview + "");
-				if (disable_notification)
-					utils.addParameter("disable_notification", disable_notification + "");
-				if (reply_to_message_id != null && !reply_to_message_id.equalsIgnoreCase(""))
-					utils.addParameter("reply_to_message_id", reply_to_message_id);
-				if (markup != null)
-					utils.addParameter("reply_markup", markup.serialize());
-				if (base instanceof TextComponent) {
-					TextComponent tc = (TextComponent) base;
-					if (tc.getMode() != ParsingMode.NONE)
-						utils.addParameter("parse_mode", tc.getMode().getParsingMethodName());
-					utils.addParameter("text", tc.toString());
-					logger.info("Message sent: " + tc.toString());
-				} else if (base instanceof RawText) {
-					RawText text = (RawText) base;
-					if (text.getMode() != ParsingMode.NONE)
-						utils.addParameter("parse_mode", text.getMode().getParsingMethodName());
-					utils.addParameter("text", text.getText());
-					logger.info("Message sent: " + text.getText());
-				}
-				utils.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
+            utils.addParameter("offset", offset + "");
 
-	}
+            String res = utils.close();
+            return new JSONObject(res).getJSONArray("result");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
-	public void sendMessage(TextBase base, String chat_id) {
-		sendMessage(base, chat_id, null, false, false, null);
-	}
+    public void sendMessage(TextBase base, String chat_id, String reply_to_message_id, boolean disable_web_preview,
+                            boolean disable_notification, ReplyMarkup markup) {
+        executor.submit(() -> {
+            String url = "https://api.telegram.org/bot" + token + "/sendMessage";
+            RequestUtility utils = null;
 
-	public void sendMessage(String text, String chat_id, String reply_to_message_id, boolean disable_web_preview,
-			boolean disable_notification, ReplyMarkup markup) {
-		sendMessage(new RawText(text, ParsingMode.NONE), chat_id, reply_to_message_id, disable_web_preview,
-				disable_notification, markup);
-	}
+            try {
+                utils = new RequestUtility(url);
 
-	public void sendMessage(String message, String chat_id) {
-		sendMessage(new RawText(message, ParsingMode.NONE), chat_id, null, false, false, null);
-	}
+                utils.addParameter("chat_id", chat_id);
+                if (disable_web_preview)
+                    utils.addParameter("disable_web_preview", disable_web_preview + "");
+                if (disable_notification)
+                    utils.addParameter("disable_notification", disable_notification + "");
+                if (reply_to_message_id != null && !reply_to_message_id.equalsIgnoreCase(""))
+                    utils.addParameter("reply_to_message_id", reply_to_message_id);
+                if (markup != null)
+                    utils.addParameter("reply_markup", markup.serialize());
+                if (base != null) {
+                    if (base.getParsingMode() != ParsingMode.NONE)
+                        utils.addParameter("parse_mode", base.getParsingMode().getParsingMethodName());
+                    utils.addParameter("text", base.make());
+                    logger.info("Message sent: " + base.make());
+                }
+                utils.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
 
-	public void forwardMessage(String chat_id, String from_chat_id, int message_id) {
-		executor.submit(() -> {
-			String url = API + token + "/forwardMessage";
-			RequestUtility utils = null;
+    }
 
-			try {
-				utils = new RequestUtility(url);
+    public void sendMessage(TextBase base, String chat_id) {
+        sendMessage(base, chat_id, null, false, false, null);
+    }
 
-				utils.addParameter("chat_id", chat_id);
-				utils.addParameter("from_chat_id", from_chat_id);
-				utils.addParameter("message_id", message_id + "");
-				utils.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
+    public void sendMessage(String text, String chat_id, String reply_to_message_id, boolean disable_web_preview,
+                            boolean disable_notification, ReplyMarkup markup) {
+        sendMessage(new RawText(text, ParsingMode.NONE), chat_id, reply_to_message_id, disable_web_preview,
+                disable_notification, markup);
+    }
 
-	}
+    public void sendMessage(String message, String chat_id) {
+        sendMessage(new RawText(message, ParsingMode.NONE), chat_id, null, false, false, null);
+    }
 
-	public void sendPhoto(String chat_id, String photo, String caption) {
-		executor.submit(() -> {
-			String url = API + token + "/sendPhoto";
-			RequestUtility utils = null;
+    public void forwardMessage(String chat_id, String from_chat_id, int message_id) {
+        executor.submit(() -> {
+            String url = API + token + "/forwardMessage";
+            RequestUtility utils = null;
 
-			try {
-				utils = new RequestUtility(url);
+            try {
+                utils = new RequestUtility(url);
 
-				utils.addParameter("chat_id", chat_id);
-				utils.addParameter("photo", photo);
-				if (caption != null)
-					utils.addParameter("caption", caption);
-				utils.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
+                utils.addParameter("chat_id", chat_id);
+                utils.addParameter("from_chat_id", from_chat_id);
+                utils.addParameter("message_id", message_id + "");
+                utils.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
 
-	}
+    }
 
-	public void sendPhoto(String chat_id, File photo, String caption) {
-		executor.submit(() -> {
-			String url = API + token + "/sendPhoto";
-			MultipartUtility util = null;
-			try {
-				util = new MultipartUtility(url, "UTF-8");
+    public void sendPhoto(String chat_id, String photo, String caption) {
+        executor.submit(() -> {
+            String url = API + token + "/sendPhoto";
+            RequestUtility utils = null;
 
-				util.addFormField("chat_id", chat_id);
-				util.addFilePart("photo", photo);
-				if (caption != null)
-					util.addFormField("caption", caption);
+            try {
+                utils = new RequestUtility(url);
 
-				util.finish();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
+                utils.addParameter("chat_id", chat_id);
+                utils.addParameter("photo", photo);
+                if (caption != null)
+                    utils.addParameter("caption", caption);
+                utils.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
 
-	}
+    }
 
-	public void sendAudio(String chat_id, File audio, int duration, String performer, String title) {
-		executor.submit(() -> {
-			String url = API + token + "/sendAudio";
-			MultipartUtility util = null;
+    public void sendPhoto(String chat_id, File photo, String caption) {
+        executor.submit(() -> {
+            String url = API + token + "/sendPhoto";
+            MultipartUtility util = null;
+            try {
+                util = new MultipartUtility(url, "UTF-8");
 
-			try {
-				util = new MultipartUtility(url, "UTF-8");
+                util.addFormField("chat_id", chat_id);
+                util.addFilePart("photo", photo);
+                if (caption != null)
+                    util.addFormField("caption", caption);
 
-				util.addFormField("chat_id", chat_id);
-				util.addFilePart("audio", audio);
-				if (duration > 0)
-					util.addFormField("duration", duration + "");
-				if (performer != null)
-					util.addFormField("performer", performer);
-				if (title != null)
-					util.addFormField("title", title);
+                util.finish();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
 
-				util.finish();
+    }
 
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
+    public void sendAudio(String chat_id, File audio, int duration, String performer, String title) {
+        executor.submit(() -> {
+            String url = API + token + "/sendAudio";
+            MultipartUtility util = null;
 
-	}
+            try {
+                util = new MultipartUtility(url, "UTF-8");
 
-	public void sendAudio(String chat_id, String audio) {
-		executor.submit(() -> {
-			String url = API + token + "/sendAudio";
-			RequestUtility utility = null;
+                util.addFormField("chat_id", chat_id);
+                util.addFilePart("audio", audio);
+                if (duration > 0)
+                    util.addFormField("duration", duration + "");
+                if (performer != null)
+                    util.addFormField("performer", performer);
+                if (title != null)
+                    util.addFormField("title", title);
 
-			try {
-				utility = new RequestUtility(url);
+                util.finish();
 
-				utility.addParameter("chat_id", chat_id);
-				utility.addParameter("audio", audio);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
 
-				utility.close();
+    }
 
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
+    public void sendAudio(String chat_id, String audio) {
+        executor.submit(() -> {
+            String url = API + token + "/sendAudio";
+            RequestUtility utility = null;
 
-	}
-	
-	public Chat getChat(String chat_id) {
-		Future<Chat> f = executor.submit(() -> {
+            try {
+                utility = new RequestUtility(url);
+
+                utility.addParameter("chat_id", chat_id);
+                utility.addParameter("audio", audio);
+
+                utility.close();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+    }
+
+    public Chat getChat(String chat_id) {
+        Future<Chat> f = executor.submit(() -> {
             RequestUtility utility = new RequestUtility(API + token + "/getChat");
 
             utility.addParameter("chat_id", chat_id);
             String close = null;
             try {
                 close = utility.close();
-            } catch (IOException e){
+            } catch (IOException e) {
                 logger.severe("Chat id is either null or the chat is non-existant");
                 return null;
             }
             return parser.parseChat(new JSONObject(close));
         });
-		
-		try {
-			return f.get();
-		} catch (InterruptedException | ExecutionException e) {
-			logger.severe("Cannot fetch chat object: an exception occurred!");
-			return null;
-		}
-	}
-	
-	public ChatMember[] getChatAdministrator(String chat_id) {
-		Future<ChatMember[]> f = executor.submit(() -> {
+
+        try {
+            return f.get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.severe("Cannot fetch chat object: an exception occurred!");
+            return null;
+        }
+    }
+
+    public ChatMember[] getChatAdministrator(String chat_id) {
+        Future<ChatMember[]> f = executor.submit(() -> {
             RequestUtility utility = new RequestUtility(API + token + "/getChat");
 
             utility.addParameter("chat_id", chat_id);
             String close = null;
             try {
                 close = utility.close();
-            } catch (IOException e){
+            } catch (IOException e) {
                 logger.severe("Chat id is either null or the chat is non-existant");
                 return null;
             }
@@ -330,40 +322,40 @@ public class Bot {
 
             return parser.parseMultipleChatMembers(member);
         });
-		
-		try {
-			return f.get();
-		} catch (InterruptedException | ExecutionException e) {
-			logger.severe("Cannot fetch chat object: an exception occurred!");
-			return null;
-		}
-	}
-	
-	public int getChatMemberCount(String chat_id) {
-		Future<Integer> f = executor.submit(() -> {
+
+        try {
+            return f.get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.severe("Cannot fetch chat object: an exception occurred!");
+            return null;
+        }
+    }
+
+    public int getChatMemberCount(String chat_id) {
+        Future<Integer> f = executor.submit(() -> {
             RequestUtility utility = new RequestUtility(API + token + "/getChat");
 
             utility.addParameter("chat_id", chat_id);
             String close = null;
             try {
                 close = utility.close();
-            } catch (IOException e){
+            } catch (IOException e) {
                 logger.severe("Chat id is either null or the chat is non-existant");
                 return null;
             }
             return new JSONObject(close).getInt("result");
         });
-		
-		try {
-			return f.get();
-		} catch (InterruptedException | ExecutionException e) {
-			logger.severe("Cannot fetch chat object: an exception occurred!");
-			return 0;
-		}
-	}
-	
-	public ChatMember getChatMember(String chat_id, String user_id) {
-		Future<ChatMember> f = executor.submit(() -> {
+
+        try {
+            return f.get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.severe("Cannot fetch chat object: an exception occurred!");
+            return 0;
+        }
+    }
+
+    public ChatMember getChatMember(String chat_id, String user_id) {
+        Future<ChatMember> f = executor.submit(() -> {
             RequestUtility utility = new RequestUtility(API + token + "/getChat");
 
             utility.addParameter("chat_id", chat_id);
@@ -371,70 +363,123 @@ public class Bot {
             String close = null;
             try {
                 close = utility.close();
-            } catch (IOException e){
+            } catch (IOException e) {
                 logger.severe("Chat id is either null or the chat is non-existant");
                 return null;
             }
             return parser.parseChatMember(new JSONObject(close).getJSONObject("result"));
         });
-		
-		try {
-			return f.get();
-		} catch (InterruptedException | ExecutionException e) {
-			logger.severe("Cannot fetch chat object: an exception occurred!");
-			return null;
-		}
-	}
 
-	public void init() {
-		executor.submit(() -> {
-			int last_update_id = 0;
-			JSONArray responses = null;
+        try {
+            return f.get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.severe("Cannot fetch chat object: an exception occurred!");
+            return null;
+        }
+    }
 
-			while (true) {
-				responses = getUpdates(last_update_id++);
+    public void editTextMessage(String chat_id, int message_id, TextBase component, boolean disable_web_page_preview, ReplyMarkup replyMarkup) {
+        executor.submit(() -> {
+            try {
+                RequestUtility requestUtility = new RequestUtility(API + token + "/editMessageText");
 
-				if (responses.isNull(0)) {
-					continue;
-				} else {
-					last_update_id = responses.getJSONObject(responses.length() - 1).getInt("update_id") + 1;
-				}
+                requestUtility.addParameter("chat_id", chat_id);
+                requestUtility.addParameter("message_id", String.valueOf(message_id));
+                requestUtility.addParameter("text", component.make());
+                requestUtility.addParameter("parsing_mode", component.getParsingMode().getParsingMethodName());
+                requestUtility.addParameter("disable_web_page_preview", String.valueOf(disable_web_page_preview));
+                requestUtility.addParameter("reply_markup", replyMarkup.serialize());
 
-				for (int i = 0; i < responses.length(); i++) {
-					if (responses.getJSONObject(i).has("message")) {
-						JSONObject message = responses.getJSONObject(i).getJSONObject("message");
+                requestUtility.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
 
-						latestMessage = parser.parseMessage(message, this);
+    public void editMessageCaption(String chat_id, int message_id, String caption, boolean disable_web_page_preview, ReplyMarkup replyMarkup) {
+        executor.submit(() -> {
+            try {
+                RequestUtility requestUtility = new RequestUtility(API + token + "/editMessageText");
 
-						logger.info("Message received! Text: " + latestMessage.getText() + " - Sender: [First name = "
-								+ latestMessage.getFrom().getFirst_name() + ", Second name (if present) = "
-								+ latestMessage.getFrom().getLast_name() + ", Username (if present) = "
-								+ latestMessage.getFrom().getUsername() + ", Id = " + latestMessage.getFrom().getId()
-								+ ", ChatType = " + latestMessage.getChat().getType().toString() + ", ChatId = "
-								+ latestMessage.getChat().getId() + "]");
+                requestUtility.addParameter("chat_id", chat_id);
+                requestUtility.addParameter("message_id", String.valueOf(message_id));
+                requestUtility.addParameter("caption", caption);
+                requestUtility.addParameter("disable_web_page_preview", String.valueOf(disable_web_page_preview));
+                requestUtility.addParameter("reply_markup", replyMarkup.serialize());
 
-						EventManager.callEvent(new ReceiveMessageEvent(latestMessage));
+                requestUtility.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
 
-						if (latestMessage.getText().toLowerCase().startsWith("/")) {
-							Commands.trigger(latestMessage);
-						}
-					} else if (responses.getJSONObject(i).has("edited_message")) {
-						JSONObject message = responses.getJSONObject(i).getJSONObject("edited_message");
+    public void editMessageReplyMarkup(String chat_id, int message_id, ReplyMarkup replyMarkup) {
+        executor.submit(() -> {
+            try {
+                RequestUtility requestUtility = new RequestUtility(API + token + "/editMessageText");
 
-						Message edited_message = parser.parseMessage(message, this);
+                requestUtility.addParameter("chat_id", chat_id);
+                requestUtility.addParameter("message_id", String.valueOf(message_id));
+                requestUtility.addParameter("reply_markup", replyMarkup.serialize());
 
-						logger.info("Message Modified: " + edited_message.getText());
+                requestUtility.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
 
-						EventManager.callEvent(new ModifyMessageEvent(edited_message));
-					}
-				}
-			}
-		});
-	}
-	
-	public void shutdown(int exitCode) {
-		executor.shutdownNow();
-		System.exit(exitCode);
-	}
+    public void init() {
+        executor.submit(() -> {
+            int last_update_id = 0;
+            JSONArray responses = null;
+
+            while (true) {
+                responses = getUpdates(last_update_id++);
+
+                if (responses.isNull(0)) {
+                    continue;
+                } else {
+                    last_update_id = responses.getJSONObject(responses.length() - 1).getInt("update_id") + 1;
+                }
+
+                for (int i = 0; i < responses.length(); i++) {
+                    if (responses.getJSONObject(i).has("message")) {
+                        JSONObject message = responses.getJSONObject(i).getJSONObject("message");
+
+                        latestMessage = parser.parseMessage(message, this);
+
+                        logger.info("Message received! Text: " + latestMessage.getText() + " - Sender: [First name = "
+                                + latestMessage.getFrom().getFirst_name() + ", Second name (if present) = "
+                                + latestMessage.getFrom().getLast_name() + ", Username (if present) = "
+                                + latestMessage.getFrom().getUsername() + ", Id = " + latestMessage.getFrom().getId()
+                                + ", ChatType = " + latestMessage.getChat().getType().toString() + ", ChatId = "
+                                + latestMessage.getChat().getId() + "]");
+
+                        EventManager.callEvent(new ReceiveMessageEvent(latestMessage));
+
+                        if (latestMessage.getText().toLowerCase().startsWith("/")) {
+                            Commands.trigger(latestMessage);
+                        }
+                    } else if (responses.getJSONObject(i).has("edited_message")) {
+                        JSONObject message = responses.getJSONObject(i).getJSONObject("edited_message");
+
+                        Message edited_message = parser.parseMessage(message, this);
+
+                        logger.info("Message Modified: " + edited_message.getText());
+
+                        EventManager.callEvent(new ModifyMessageEvent(edited_message));
+                    }
+                }
+            }
+        });
+    }
+
+    public void shutdown(int exitCode) {
+        executor.shutdownNow();
+        System.exit(exitCode);
+    }
 
 }

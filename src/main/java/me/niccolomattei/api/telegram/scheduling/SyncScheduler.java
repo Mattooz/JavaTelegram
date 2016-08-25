@@ -6,6 +6,10 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 
+/**
+ * @deprecated Rework needed. Will do it soon.
+ */
+@Deprecated
 public class SyncScheduler implements Scheduler {
 
 	private Map<UUID, TimerTask> tasks = new HashMap<>();

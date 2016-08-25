@@ -2,14 +2,18 @@ package me.niccolomattei.api.telegram.scheduling;
 
 import java.util.UUID;
 
-public abstract interface Scheduler {
+/**
+ * @deprecated Rework needed. Will do it soon.
+ */
+@Deprecated
+public interface Scheduler {
 	
-	public abstract void runTask(SchedulerTask scheduler);
-	
-	public abstract void runTaskLater(SchedulerTask scheduler, long delay);
-	
-	public abstract void runRepeatingTask(SchedulerTask scheduler, long delay, long period);
+	void runTask(SchedulerTask scheduler);
 
-	public abstract void cancel(UUID taskId);
+	void runTaskLater(SchedulerTask scheduler, long delay);
+	
+	void runRepeatingTask(SchedulerTask scheduler, long delay, long period);
+
+	void cancel(UUID taskId);
 
 }

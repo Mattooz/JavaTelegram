@@ -1,9 +1,13 @@
 package me.niccolomattei.api.telegram.scheduling;
 
-import java.util.UUID;
-
 import me.niccolomattei.api.telegram.Bot;
 
+import java.util.UUID;
+
+/**
+ * @deprecated Rework needed. Will do it soon.
+ */
+@Deprecated
 public abstract class SyncSchedulerTask implements Runnable, SchedulerTask{
 	
 	protected UUID id = null;

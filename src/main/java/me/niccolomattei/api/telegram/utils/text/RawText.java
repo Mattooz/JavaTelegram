@@ -10,11 +10,12 @@ public class RawText implements TextBase {
 		this.mode = mode;
 	}
 	
-	public ParsingMode getMode() {
+	public ParsingMode getParsingMode() {
 		return mode;
 	}
-	
-	public String getText() {
+
+	@Override
+	public String make() {
 		return text;
 	}
 	
