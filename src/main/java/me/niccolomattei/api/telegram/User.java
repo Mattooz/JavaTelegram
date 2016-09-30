@@ -3,6 +3,11 @@ package me.niccolomattei.api.telegram;
 import me.niccolomattei.api.telegram.permission.Permission;
 import me.niccolomattei.api.telegram.permission.PermissionGroup;
 import me.niccolomattei.api.telegram.permission.Permissionable;
+import me.niccolomattei.api.telegram.serialization.ISerializable;
+import me.niccolomattei.api.telegram.serialization.Ignorable;
+import me.niccolomattei.api.telegram.serialization.IgnoreClassName;
+import me.niccolomattei.api.telegram.serialization.JSONSerializer;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,13 +15,19 @@ import java.util.List;
 /**
  * Created by Utente on 23/10/2015.
  */
-public class User implements BotObject, Permissionable {
+@IgnoreClassName
+public class User implements BotObject, Permissionable, ISerializable {
 
     private int id;
     private String first_name;
     private String last_name;
     private String username;
+    @Ignorable
     private Bot currentBot;
+
+    public User () {
+
+    }
 
     public User(int id, String first_name) {
         this.id = id;
@@ -112,4 +123,24 @@ public class User implements BotObject, Permissionable {
 		return hasPermission(new Permission(s));
 	}
 
+    @Override
+    public String serialize() {
+        return JSONSerializer.serialize(this);
+    }
+
+    @Override
+    public JSONObject serializeJson() {
+        return JSONSerializer.serializeJson(this);
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", first_name='" + first_name + '\'' +
+                ", last_name='" + last_name + '\'' +
+                ", username='" + username + '\'' +
+                ", currentBot=" + currentBot +
+                '}';
+    }
 }

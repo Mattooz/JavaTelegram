@@ -2,21 +2,20 @@ package me.niccolomattei.api.telegram.parsing;
 
 import me.niccolomattei.api.telegram.*;
 import me.niccolomattei.api.telegram.Chat.ChatType;
+import me.niccolomattei.api.telegram.inline.CallbackQuery;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-
 public class Parser {
-	
-	public String decode(String string) {
-		try {
-			return URLDecoder.decode(string, "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-		}
-		return null;
+
+	public CallbackQuery parseCallbackQuery(JSONObject callback, Bot bot) {
+		String id = callback.getString("id");
+		User from = callback.has("from") ? parseUser(callback.getJSONObject("from"), bot) : null;
+		Message message = callback.has("message") ? parseMessage(callback.getJSONObject("message"), bot) : null;
+		String inline_message_id = callback.has("inline_message_id") ? callback.getString("inline_message_id") : "null";
+		String data = callback.getString("data");
+
+		return new CallbackQuery(id, from, message, inline_message_id, data);
 	}
 
 	public Message parseMessage(JSONObject message, Bot bot) {
@@ -28,7 +27,7 @@ public class Parser {
 		int forward_date = message.has("forward_date") ? message.getInt("forward_date") : 0;
 		JSONObject reply_to_message = message.has("reply_to_message") ? message.getJSONObject("reply_to_message")
 				: null;
-		String text = message.has("text") ? message.getString("text") : "null";
+		String text = message.has("text") ? message.getString("text") : "empty-msg";
 		JSONObject audio = message.has("audio") ? message.getJSONObject("audio") : null;
 		JSONObject document = message.has("document") ? message.getJSONObject("document") : null;
 		JSONArray photo = message.has("photo") ? message.getJSONArray("photo") : null;
@@ -69,7 +68,7 @@ public class Parser {
 		Sticker r_sticker = parseSticker(sticker);
 		Video r_video = parseVideo(video);
 		Voice r_voice = parseVoice(voice);
-		Venue r_venue = null;
+		Venue r_venue = parseVenue(venue);
 		Contact r_contact = parseContact(contact);
 		Location r_location = parseLocation(location);
 		User r_new_chat_participant = parseUser(new_chat_participant, bot);

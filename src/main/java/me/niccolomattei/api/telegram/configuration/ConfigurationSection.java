@@ -28,6 +28,8 @@ public interface ConfigurationSection {
 	Collection<Object> getCollection(String key);
 	
 	ConfigurationSection getSubSection(String key);
+
+	void set(String key, Object value);
 	
 	boolean contains(String key);
 	

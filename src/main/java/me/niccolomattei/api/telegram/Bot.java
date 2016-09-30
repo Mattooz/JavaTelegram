@@ -3,14 +3,16 @@ package me.niccolomattei.api.telegram;
 import me.niccolomattei.api.telegram.commands.Commands;
 import me.niccolomattei.api.telegram.configuration.Configuration;
 import me.niccolomattei.api.telegram.events.EventManager;
-import me.niccolomattei.api.telegram.events.defaults.ModifyMessageEvent;
-import me.niccolomattei.api.telegram.events.defaults.ReceiveMessageEvent;
+import me.niccolomattei.api.telegram.events.defaults.*;
+import me.niccolomattei.api.telegram.inline.CallbackQuery;
+import me.niccolomattei.api.telegram.inline.ChosenInlineResult;
+import me.niccolomattei.api.telegram.inline.InlineQuery;
+import me.niccolomattei.api.telegram.inline.InlineQueryResult;
 import me.niccolomattei.api.telegram.keyboard.ReplyMarkup;
 import me.niccolomattei.api.telegram.logger.Logger;
 import me.niccolomattei.api.telegram.parsing.Parser;
 import me.niccolomattei.api.telegram.permission.PermissionManager;
-import me.niccolomattei.api.telegram.scheduling.Scheduler;
-import me.niccolomattei.api.telegram.scheduling.SyncScheduler;
+import me.niccolomattei.api.telegram.serialization.JSONSerializer;
 import me.niccolomattei.api.telegram.utils.MultipartUtility;
 import me.niccolomattei.api.telegram.utils.RequestUtility;
 import me.niccolomattei.api.telegram.utils.text.ParsingMode;
@@ -21,6 +23,8 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.*;
 
 /**
@@ -32,22 +36,64 @@ public class Bot {
     public static final String USER_AGENT = "Mozilla/5.0";
     public static final String MULTIPART = "multipart/form-data";
     private Parser parser = new Parser();
-    private Logger logger = new Logger("Bot");
+    private Logger logger;
     private Configuration config;
     private PermissionManager manager;
     private volatile ExecutorService executor;
+    private volatile ScheduledExecutorService schedulerService;
+    private boolean running = false;
+    private boolean controlThreadRunning = false;
+    private int timesRestarted = 0;
 
     private Message latestMessage = null;
-    private Scheduler scheduler;
 
     private String token;
     public static Bot currentBot = null;
 
     public Bot(String token, boolean enableConfig, boolean enablePermission) {
         this.token = token;
-        scheduler = new SyncScheduler();
         currentBot = this;
         executor = Executors.newFixedThreadPool(10);
+        schedulerService = Executors.newScheduledThreadPool(10);
+        logger = new Logger("Bot") {
+
+            @Override
+            public void handleIncomingMessage(Message message) {
+                info("Message received! Text: " + message.getText() + " - Sender: [First name = "
+                        + message.getFrom().getFirst_name() + ", Second name (if present) = "
+                        + message.getFrom().getLast_name() + ", Username (if present) = "
+                        + message.getFrom().getUsername() + ", Id = " + message.getFrom().getId()
+                        + ", ChatType = " + message.getChat().getType().toString() + ", ChatId = "
+                        + message.getChat().getId() + "]");
+            }
+
+            @Override
+            public void handleIncomingModifiedMessage(Message message) {
+                info("A message was edited! Text: " + message.getText() + " - Sender: [First name = "
+                        + message.getFrom().getFirst_name() + ", Second name (if present) = "
+                        + message.getFrom().getLast_name() + ", Username (if present) = "
+                        + message.getFrom().getUsername() + ", Id = " + message.getFrom().getId()
+                        + ", ChatType = " + message.getChat().getType().toString() + ", ChatId = "
+                        + message.getChat().getId() + "]");
+            }
+
+            @Override
+            public void handleIncomingCallbackQuery(CallbackQuery callbackQuery) {
+                info("Callback Query Received!");
+            }
+
+            @Override
+            public void handleIncomingInlineQuery(InlineQuery inlineQuery) {
+                info("Inline Query Received!");
+            }
+
+            @Override
+            public void handleIncomingChosenInlineResult(ChosenInlineResult chosenInlineResult) {
+                info("ChosenInlineResult Received!");
+            }
+
+        };
+
         if (enableConfig) {
             Configuration.generateDefault("config.json");
             config = new Configuration(Configuration.defaultPath + "config.json");
@@ -65,16 +111,24 @@ public class Bot {
         return manager;
     }
 
-    public Scheduler getScheduler() {
-        return scheduler;
-    }
-
     public Logger getLogger() {
         return logger;
     }
 
+    public void setLogger(Logger logger) {
+        this.logger = logger;
+    }
+
     public Configuration getConfig() {
         return config;
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
+
+    public ScheduledExecutorService getSchedulerService() {
+        return schedulerService;
     }
 
     public void executeSafely(Runnable runnable) {
@@ -90,6 +144,8 @@ public class Bot {
             return null;
         }
     }
+
+
 
     public User getMe() {
         Future<User> future = executor.submit(() -> {
@@ -283,6 +339,59 @@ public class Bot {
 
     }
 
+    public void banChatMember(String chat_id, int user_id) {
+        executor.submit(() -> {
+            String url = API + token + "/kickChatMember";
+            RequestUtility requestUtility = null;
+
+            try {
+                requestUtility = new RequestUtility(url);
+
+                requestUtility.addParameter("chat_id", chat_id);
+                requestUtility.addParameter("user_id", user_id);
+
+                requestUtility.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public void leaveChat(String chat_id) {
+        executor.submit(() -> {
+            String url = API + token + "/leaveChat";
+            RequestUtility requestUtility = null;
+
+            try {
+                requestUtility = new RequestUtility(url);
+
+                requestUtility.addParameter("chat_id", chat_id);
+
+                requestUtility.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public void unbanChatMember(String chat_id, int user_id) {
+        executor.submit(() -> {
+            String url = API + token + "/unbanChatMember";
+            RequestUtility requestUtility = null;
+
+            try {
+                requestUtility = new RequestUtility(url);
+
+                requestUtility.addParameter("chat_id", chat_id);
+                requestUtility.addParameter("user_id", user_id);
+
+                requestUtility.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
     public Chat getChat(String chat_id) {
         Future<Chat> f = executor.submit(() -> {
             RequestUtility utility = new RequestUtility(API + token + "/getChat");
@@ -392,7 +501,8 @@ public class Bot {
 
                 requestUtility.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.severe("It looks like your bot threw an exception!");
+                logger.processException(e);
             }
         });
     }
@@ -400,7 +510,7 @@ public class Bot {
     public void editMessageCaption(String chat_id, int message_id, String caption, boolean disable_web_page_preview, ReplyMarkup replyMarkup) {
         executor.submit(() -> {
             try {
-                RequestUtility requestUtility = new RequestUtility(API + token + "/editMessageText");
+                RequestUtility requestUtility = new RequestUtility(API + token + "/editMessageCaption");
 
                 requestUtility.addParameter("chat_id", chat_id);
                 requestUtility.addParameter("message_id", String.valueOf(message_id));
@@ -410,7 +520,8 @@ public class Bot {
 
                 requestUtility.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.severe("It looks like your bot threw an exception!");
+                logger.processException(e);
             }
         });
     }
@@ -418,7 +529,7 @@ public class Bot {
     public void editMessageReplyMarkup(String chat_id, int message_id, ReplyMarkup replyMarkup) {
         executor.submit(() -> {
             try {
-                RequestUtility requestUtility = new RequestUtility(API + token + "/editMessageText");
+                RequestUtility requestUtility = new RequestUtility(API + token + "/editMessageReplyMarkup");
 
                 requestUtility.addParameter("chat_id", chat_id);
                 requestUtility.addParameter("message_id", String.valueOf(message_id));
@@ -426,55 +537,148 @@ public class Bot {
 
                 requestUtility.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.severe("It looks like your bot threw an exception!");
+                logger.processException(e);
+            }
+        });
+    }
+
+    public void answerInlineQuery(long inline_query_id, int cache_time, boolean is_personal, String next_offset, String switch_pm_text, String switch_pm_parameter, InlineQueryResult... results) {
+        executor.submit(() -> {
+            try {
+                RequestUtility requestUtility = new RequestUtility(API + token + "/answerInlineQuery");
+
+                List<InlineQueryResult> list = Arrays.asList(results);
+                JSONArray jsonArray = new JSONArray(list);
+
+                System.out.println(jsonArray.toString());
+
+                requestUtility.addParameter("inline_query_id", inline_query_id);
+                requestUtility.addParameter("cache_time", cache_time);
+                requestUtility.addParameter("is_personal", is_personal);
+                requestUtility.addParameter("next_offset", next_offset);
+                requestUtility.addParameter("switch_pm_text", switch_pm_text);
+                requestUtility.addParameter("switch_pm_parameter", switch_pm_parameter);
+                requestUtility.addParameter("results", jsonArray);
+
+                requestUtility.close();
+            } catch (IOException e) {
+                logger.severe("It looks like your bot threw an exception!");
+                logger.processException(e);
+            }
+        });
+    }
+
+    public void answerCallbackQuery(String callback_query_id, String text, boolean show_alert) {
+        executor.submit(() -> {
+            try {
+                RequestUtility requestUtility = new RequestUtility(API + token + "/answerCallbackQuery");
+                requestUtility.addParameter("callback_query_id", callback_query_id);
+                if (text != null || text != "") requestUtility.addParameter("text", text);
+                requestUtility.addParameter("show_alert", show_alert);
+
+                requestUtility.close();
+            } catch (IOException e) {
+                logger.severe("It looks like your bot threw an exception!");
+                logger.processException(e);
             }
         });
     }
 
     public void init() {
         executor.submit(() -> {
-            int last_update_id = 0;
-            JSONArray responses = null;
+            try {
+                int last_update_id = -2;
+                JSONArray responses = null;
 
-            while (true) {
-                responses = getUpdates(last_update_id++);
+                running = true;
 
-                if (responses.isNull(0)) {
-                    continue;
-                } else {
-                    last_update_id = responses.getJSONObject(responses.length() - 1).getInt("update_id") + 1;
-                }
+                while (true) {
+                    responses = getUpdates(last_update_id++);
 
-                for (int i = 0; i < responses.length(); i++) {
-                    if (responses.getJSONObject(i).has("message")) {
-                        JSONObject message = responses.getJSONObject(i).getJSONObject("message");
+                    if (responses.isNull(0)) {
+                        continue;
+                    } else {
+                        last_update_id = responses.getJSONObject(responses.length() - 1).getInt("update_id") + 1;
+                    }
 
-                        latestMessage = parser.parseMessage(message, this);
+                    for (int i = 0; i < responses.length(); i++) {
+                        if (responses.getJSONObject(i).has("message")) {
+                            JSONObject message = responses.getJSONObject(i).getJSONObject("message");
 
-                        logger.info("Message received! Text: " + latestMessage.getText() + " - Sender: [First name = "
-                                + latestMessage.getFrom().getFirst_name() + ", Second name (if present) = "
-                                + latestMessage.getFrom().getLast_name() + ", Username (if present) = "
-                                + latestMessage.getFrom().getUsername() + ", Id = " + latestMessage.getFrom().getId()
-                                + ", ChatType = " + latestMessage.getChat().getType().toString() + ", ChatId = "
-                                + latestMessage.getChat().getId() + "]");
+                            latestMessage = parser.parseMessage(message, this);
 
-                        EventManager.callEvent(new ReceiveMessageEvent(latestMessage));
+                            logger.handleIncomingMessage(latestMessage);
 
-                        if (latestMessage.getText().toLowerCase().startsWith("/")) {
-                            Commands.trigger(latestMessage);
+                            EventManager.callEvent(new ReceiveMessageEvent(latestMessage));
+
+                            if (latestMessage.getText().toLowerCase().startsWith("/")) {
+                                Commands.trigger(latestMessage);
+                            }
+                        } else if (responses.getJSONObject(i).has("edited_message")) {
+                            JSONObject message = responses.getJSONObject(i).getJSONObject("edited_message");
+
+                            Message edited_message = parser.parseMessage(message, this);
+
+                            logger.handleIncomingModifiedMessage(edited_message);
+
+                            EventManager.callEvent(new ModifyMessageEvent(edited_message));
+                        } else if (responses.getJSONObject(i).has("callback_query")) {
+                            JSONObject callback_query = responses.getJSONObject(i).getJSONObject("callback_query");
+
+                            CallbackQuery callbackQuery = parser.parseCallbackQuery(callback_query, this);
+
+                            logger.handleIncomingCallbackQuery(callbackQuery);
+
+                            EventManager.callEvent(new CallbackQueryReceivedEvent(callbackQuery));
+                        } else if (responses.getJSONObject(i).has("chosen_inline_query")) {
+                            JSONObject chosen_inline_query = responses.getJSONObject(i);
+
+                            ChosenInlineResult chosenInlineResult = JSONSerializer.deserialize(ChosenInlineResult.class, chosen_inline_query);
+
+                            EventManager.callEvent(new ChosenInlineResultReceivedEvent(chosenInlineResult));
+
+                            logger.handleIncomingChosenInlineResult(chosenInlineResult);
+                        } else if (responses.getJSONObject(i).has("inline_query")) {
+                            JSONObject inline_query = responses.getJSONObject(i);
+
+                            InlineQuery inlineQuery = JSONSerializer.deserialize(InlineQuery.class, inline_query);
+
+                            logger.handleIncomingInlineQuery(inlineQuery);
+
+                            EventManager.callEvent(new InlineQueryReceivedEvent(inlineQuery));
                         }
-                    } else if (responses.getJSONObject(i).has("edited_message")) {
-                        JSONObject message = responses.getJSONObject(i).getJSONObject("edited_message");
-
-                        Message edited_message = parser.parseMessage(message, this);
-
-                        logger.info("Message Modified: " + edited_message.getText());
-
-                        EventManager.callEvent(new ModifyMessageEvent(edited_message));
                     }
                 }
+            } catch (Exception e) {
+                running = false;
+                logger.severe("It looks like your bot crashed! Here's the detailed version of the crash: ");
+                logger.processException(e);
             }
         });
+        if(!controlThreadRunning) {
+            executor.submit(() -> {
+                controlThreadRunning = true;
+                while (true) {
+                    if (!running) {
+                        if(timesRestarted <= 5) {
+                            timesRestarted++;
+                            logger.warning("Looks like your bot crashed! Let me restart it for you! Restart #" + timesRestarted);
+                            init();
+                        } else {
+                            logger.severe("It looks like your bot is keeping crashing... Please fix your bot then start it back again.");
+                            logger.warning("If you think that this is not your bot's fault, please make an issue on the github page!");
+                            shutdown(1);
+                        }
+                    }
+                    try {
+                        Thread.sleep(1000);
+                    } catch (Exception e) {
+                        //do nothing
+                    }
+                }
+            });
+        }
     }
 
     public void shutdown(int exitCode) {

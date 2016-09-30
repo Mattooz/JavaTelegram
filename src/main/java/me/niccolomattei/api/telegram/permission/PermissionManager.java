@@ -15,11 +15,8 @@ public class PermissionManager {
     private final Configuration permissionConfig;
 
     public PermissionManager(Bot bot) {
-        Configuration.generateDefault(Configuration.defaultPath + "permission.json");
+        Configuration.generateDefault("permission.json");
         permissionConfig = new Configuration(Configuration.defaultPath + "permission.json");
-
-        permissionConfig.set("permission.users", null);
-        permissionConfig.save();
     }
 
     public boolean hasPermission(User user, Permission permission) {

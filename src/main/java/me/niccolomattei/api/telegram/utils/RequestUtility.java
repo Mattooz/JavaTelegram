@@ -32,8 +32,8 @@ public class RequestUtility {
 		requestParams = new ArrayList<>();
 	}
 
-	public void addParameter(String prmName, String value) throws IOException {
-		requestParams.add(new RequestParam(prmName, URLEncoder.encode(value, "UTF-8")));
+	public void addParameter(String prmName, Object value) throws IOException {
+		requestParams.add(new RequestParam(prmName, URLEncoder.encode(String.valueOf(value), "UTF-8")));
 	}
 
 	public void addParameters(Map<String, Object> map) throws IOException {

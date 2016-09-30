@@ -2,7 +2,7 @@ package me.niccolomattei.api.telegram;
 
 public class MessageEntity {
 
-	public static enum EntityType {
+	public enum EntityType {
 		// @username
 		MENTION("mention"),
 
@@ -28,7 +28,7 @@ public class MessageEntity {
 
 		private String nameExact;
 
-		private EntityType(String nameExact) {
+		EntityType(String nameExact) {
 			this.nameExact = nameExact;
 		}
 

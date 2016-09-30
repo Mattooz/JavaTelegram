@@ -1,10 +1,11 @@
 package me.niccolomattei.api.telegram.keyboard;
 
+import me.niccolomattei.api.telegram.serialization.ISerializable;
 import org.json.JSONObject;
 
-import me.niccolomattei.api.telegram.serialization.JSONSerializator;
+import me.niccolomattei.api.telegram.serialization.JSONSerializer;
 
-public class KeyboardButton implements ReplyMarkup {
+public class KeyboardButton implements ISerializable {
 
 	public String text;
 	public boolean request_contact;
@@ -31,12 +32,12 @@ public class KeyboardButton implements ReplyMarkup {
 
 	@Override
 	public String serialize() {
-		return JSONSerializator.serialize(this);
+		return JSONSerializer.serialize(this);
 	}
 
 	@Override
 	public JSONObject serializeJson() {
-		return JSONSerializator.serializeJson(this);
+		return JSONSerializer.serializeJson(this);
 	}
 
 }

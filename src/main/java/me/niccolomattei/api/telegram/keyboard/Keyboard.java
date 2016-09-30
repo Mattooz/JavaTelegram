@@ -2,7 +2,7 @@ package me.niccolomattei.api.telegram.keyboard;
 
 import me.niccolomattei.api.telegram.serialization.Ignorable;
 import me.niccolomattei.api.telegram.serialization.IgnoreClassName;
-import me.niccolomattei.api.telegram.serialization.JSONSerializator;
+import me.niccolomattei.api.telegram.serialization.JSONSerializer;
 import org.json.JSONObject;
 
 import java.util.Arrays;
@@ -60,13 +60,13 @@ public class Keyboard implements ReplyMarkup {
 	@Override
 	public String serialize() {
 		keyboard = getBidimensionalButtonsArray();
-		return JSONSerializator.serialize(this);
+		return JSONSerializer.serialize(this);
 	}
 
 	@Override
 	public JSONObject serializeJson() {
 		keyboard = getBidimensionalButtonsArray();
-		return JSONSerializator.serializeJson(this);
+		return JSONSerializer.serializeJson(this);
 	}
 
 }

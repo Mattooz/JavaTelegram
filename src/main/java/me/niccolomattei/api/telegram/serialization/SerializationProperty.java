@@ -10,5 +10,6 @@ import java.lang.annotation.Target;
 public @interface SerializationProperty {
 	
 	String propertyName();
-	
+	boolean required() default true;
+
 }

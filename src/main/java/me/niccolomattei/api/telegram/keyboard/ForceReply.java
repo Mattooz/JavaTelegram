@@ -3,7 +3,7 @@ package me.niccolomattei.api.telegram.keyboard;
 import org.json.JSONObject;
 
 import me.niccolomattei.api.telegram.serialization.IgnoreClassName;
-import me.niccolomattei.api.telegram.serialization.JSONSerializator;
+import me.niccolomattei.api.telegram.serialization.JSONSerializer;
 
 @IgnoreClassName
 public class ForceReply implements ReplyMarkup {
@@ -17,12 +17,12 @@ public class ForceReply implements ReplyMarkup {
 
 	@Override
 	public String serialize() {
-		return JSONSerializator.serialize(this);
+		return JSONSerializer.serialize(this);
 	}
 
 	@Override
 	public JSONObject serializeJson() {
-		return JSONSerializator.serializeJson(this);
+		return JSONSerializer.serializeJson(this);
 	}
 
 }
