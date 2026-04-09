@@ -14,22 +14,26 @@ public abstract class SyncSchedulerTask implements Runnable, SchedulerTask{
 	
 	@Override
 	public void runTask() {
-		Bot.currentBot.getScheduler().runTask(this);
+		throw new UnsupportedOperationException("Deprecated");
+		//Bot.currentBot.getScheduler().runTask(this);
 	}
 	
 	@Override
 	public void runTaskLater(long delay) {
-		Bot.currentBot.getScheduler().runTaskLater(this, delay);
+		throw new UnsupportedOperationException("Deprecated");
+		//Bot.currentBot.getScheduler().runTaskLater(this, delay);
 	}
 	
 	@Override
 	public void runRepeatingTask(long delay, long period) {
-		Bot.currentBot.getScheduler().runRepeatingTask(this, delay, period);
+		throw new UnsupportedOperationException("Deprecated");
+		//Bot.currentBot.getScheduler().runRepeatingTask(this, delay, period);
 	}
 	
 	@Override
 	public void cancel() {
-		Bot.currentBot.getScheduler().cancel(id);
+		throw new UnsupportedOperationException("Deprecated");
+		//Bot.currentBot.getScheduler().cancel(id);
 	}
 	
 	@Override
